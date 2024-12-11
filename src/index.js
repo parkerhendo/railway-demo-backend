@@ -32,7 +32,6 @@ async function insertUserToDb(user) {
             first_name VARCHAR(100),
             last_name VARCHAR(100),
             email VARCHAR(100),
-            avatar VARCHAR(255),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         `;
@@ -43,14 +42,13 @@ async function insertUserToDb(user) {
 
         // Insert user data
         const insertQuery = `
-            INSERT INTO users (first_name, last_name, email, gender, age)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO users (first_name, last_name, email)
+            VALUES ($1, $2, $3)
           `;
         const values = [
             user.name.first,
             user.name.last,
             user.email,
-            user.avatar,
         ];
 
         await client.query(insertQuery, values);
