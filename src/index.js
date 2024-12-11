@@ -82,10 +82,13 @@ app.post('/api/fetch-users', async (req, res) => {
 
 // Endpoint to get all users from database
 app.get('/api/users', async (req, res) => {
+    const client = new Client({
+        connectionString: DATABASE_URL,
+    });
     try {
-        const client = new Client({
-            connectionString: DATABASE_URL,
-        });
+        await client.connect(); // Missing client.connect()
+        console.log("client connected");
+        console.log("querying users...");
         const result = await client.query(
             'SELECT * FROM users ORDER BY created_at DESC'
         );
@@ -93,6 +96,8 @@ app.get('/api/users', async (req, res) => {
     } catch (error) {
         console.error('Error fetching users:', error);
         res.status(500).json({ error: 'Failed to fetch users' });
+    } finally {
+        await client.end(); // Missing client cleanup
     }
 });
 
