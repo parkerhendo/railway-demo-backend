@@ -83,6 +83,9 @@ app.post('/api/fetch-users', async (req, res) => {
 // Endpoint to get all users from database
 app.get('/api/users', async (req, res) => {
     try {
+        const client = new Client({
+            connectionString: DATABASE_URL,
+        });
         const result = await client.query(
             'SELECT * FROM users ORDER BY created_at DESC'
         );
@@ -96,6 +99,9 @@ app.get('/api/users', async (req, res) => {
 // Endpoint to get total number of users
 app.get('/api/user-count', async (req, res) => {
     try {
+        const client = new Client({
+            connectionString: DATABASE_URL,
+        });
         const result = await client.query('SELECT COUNT(*) FROM users');
         res.json({ total: parseInt(result.rows[0].count) });
     } catch (error) {
