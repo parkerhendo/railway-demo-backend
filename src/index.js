@@ -43,15 +43,14 @@ async function insertUserToDb(user) {
 
         // Insert user data
         const insertQuery = `
-            INSERT INTO random_users (first_name, last_name, email, gender, age)
+            INSERT INTO users (first_name, last_name, email, gender, age)
             VALUES ($1, $2, $3, $4, $5)
           `;
         const values = [
             user.name.first,
             user.name.last,
             user.email,
-            user.gender,
-            user.dob.age,
+            user.avatar,
         ];
 
         await client.query(insertQuery, values);
