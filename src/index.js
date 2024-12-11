@@ -104,15 +104,18 @@ app.get('/api/users', async (req, res) => {
 
 // Endpoint to get total number of users
 app.get('/api/user-count', async (req, res) => {
-    try {
         const client = new Client({
             connectionString: DATABASE_URL,
         });
+    try {
+        await client.connect(); // Missing client.connect()
         const result = await client.query('SELECT COUNT(*) FROM users');
         res.json({ total: parseInt(result.rows[0].count) });
     } catch (error) {
         console.error('Error getting user count:', error);
         res.status(500).json({ error: 'Failed to get user count' });
+    } finally {
+        await client.end(); // Missing client cleanup
     }
 });
 
