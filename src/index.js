@@ -2,12 +2,13 @@ const express = require('express');
 const { Client } = require('pg');
 const cors = require('cors');
 const axios = require('axios');
-
+const bodyParser = require('body-parser');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
 // Middleware
 app.use(express.json());
+app.use(bodyParser.json());
 app.use(cors());
 
 const DATABASE_URL = process.env === "production" ? process.env.DATABASE_URL : process.env.DATABASE_PUBLIC_URL;
