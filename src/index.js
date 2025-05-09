@@ -1,4 +1,3 @@
-const H = require('@highlight-run/node');
 const express = require('express');
 const { Client } = require('pg');
 const cors = require('cors');
@@ -32,16 +31,8 @@ app.use(cors());
 
 const DATABASE_URL = "postgresql://invalid:invalid@localhost:5432/nonexistent_db";
 
-// Initialize Highlight.io with proper configuration
-const highlight = new H.Highlight({
-  projectID: '4g88nj0g',
-  serviceName: 'demo-backend',
-  environment: 'production',
-});
-
 const onError = (request, error) => {
   logger.error('Error occurred', { error: error.message, stack: error.stack });
-  highlight.consumeError(error)
 }
 
 // Create users table if it doesn't exist
