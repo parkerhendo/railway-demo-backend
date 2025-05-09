@@ -29,7 +29,7 @@ app.use(express.json());
 app.use(bodyParser.json());
 app.use(cors());
 
-const DATABASE_URL = "postgresql://invalid:invalid@localhost:5432/nonexistent_db";
+const DATABASE_URL = process.env.NODE_ENV === 'production' ? process.env.DATABASE_URL : process.env.DATABASE_PUBLIC_URL; 
 
 const onError = (request, error) => {
   logger.error('Error occurred', { error: error.message, stack: error.stack });
