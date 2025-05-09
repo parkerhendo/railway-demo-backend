@@ -1,29 +1,59 @@
+const H = require('@highlight-run/node');
 const express = require('express');
 const { Client } = require('pg');
 const cors = require('cors');
 const axios = require('axios');
 const bodyParser = require('body-parser');
+const winston = require('winston');
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// Configure Winston logger
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    })
+  ]
+});
 
 // Middleware
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(cors());
 
-const DATABASE_URL = process.env === "production" ? process.env.DATABASE_URL : process.env.DATABASE_PUBLIC_URL;
+const DATABASE_URL = "postgresql://invalid:invalid@localhost:5432/nonexistent_db";
+
+// Initialize Highlight.io with proper configuration
+const highlight = new H.Highlight({
+  projectID: '4g88nj0g',
+  serviceName: 'demo-backend',
+  environment: 'production',
+});
+
+const onError = (request, error) => {
+  logger.error('Error occurred', { error: error.message, stack: error.stack });
+  highlight.consumeError(error)
+}
 
 // Create users table if it doesn't exist
-
 async function insertUserToDb(user) {
   const client = new Client({
     connectionString: DATABASE_URL,
   });
 
   try {
+    const startTime = Date.now();
     await client.connect();
-
-    console.log("client connected");
+    logger.info('Database client connected successfully');
 
     // Create table if not exists
     const createTableQuery = `
@@ -36,9 +66,8 @@ async function insertUserToDb(user) {
         );
         `;
 
-    client.query(createTableQuery)
-      .then(() => console.log('Users table created successfully'))
-      .catch(err => console.error('Error creating table:', err));
+    await client.query(createTableQuery);
+    logger.info('Users table created or already exists');
 
     // Insert user data
     const insertQuery = `
@@ -52,9 +81,34 @@ async function insertUserToDb(user) {
     ];
 
     await client.query(insertQuery, values);
-    console.log("User successfully inserted into the database.");
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+
+    // Warn if database operation takes too long
+    if (duration > 1000) {
+      logger.warn('Slow database operation detected', {
+        operation: 'insert_user',
+        duration_ms: duration,
+        threshold_ms: 1000
+      });
+    }
+
+    logger.info('User inserted successfully', { 
+      firstName: user.name.first,
+      lastName: user.name.last,
+      email: user.email,
+      duration_ms: duration
+    });
   } catch (err) {
-    console.error("Error inserting user into database:", err);
+    logger.error('Error inserting user into database', { 
+      error: err.message,
+      stack: err.stack,
+      user: {
+        firstName: user.name.first,
+        lastName: user.name.last,
+        email: user.email
+      }
+    });
   } finally {
     await client.end();
   }
@@ -63,20 +117,38 @@ async function insertUserToDb(user) {
 // Endpoint to fetch users from randomuser.me and store in database
 app.post('/api/fetch-users', async (req, res) => {
   try {
-    const count = req.body.count || 10; // Default to 10 users if not specified
+    const count = req.body.count || 10;
+    
+    // Warn if requesting too many users
+    if (count > 50) {
+      logger.warn('Large user fetch request detected', {
+        requested_count: count,
+        threshold: 50
+      });
+    }
+    
+    logger.info('Fetching users from randomuser.me', { count });
+    
     const response = await axios.get(`https://randomuser.me/api/?results=${count}`);
     const users = response.data.results;
+    logger.info('Successfully fetched users from randomuser.me', { count: users.length });
 
     // Insert users into database
     for (const user of users) {
-      console.log("Inserting user into database", user);
+      logger.info('Processing user for database insertion', { 
+        email: user.email 
+      });
       await insertUserToDb(user);
     }
 
     res.json({ message: `Successfully fetched and stored ${users.length} users` });
   } catch (error) {
-    console.error('Error fetching and storing users:', error);
-    res.status(500).json({ error: error });
+    onError(req, error);
+    logger.error('Error in fetch-users endpoint', { 
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -86,18 +158,50 @@ app.get('/api/users', async (req, res) => {
     connectionString: DATABASE_URL,
   });
   try {
-    await client.connect(); // Missing client.connect()
-    console.log("client connected");
-    console.log("querying users...");
+    const startTime = Date.now();
+    await client.connect();
+    logger.info('Database client connected for users fetch');
+    
     const result = await client.query(
       'SELECT * FROM users ORDER BY created_at DESC'
     );
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+
+    // Warn if query takes too long
+    if (duration > 2000) {
+      logger.warn('Slow database query detected', {
+        operation: 'fetch_all_users',
+        duration_ms: duration,
+        threshold_ms: 2000,
+        result_count: result.rows.length
+      });
+    }
+
+    // Warn if result set is large
+    if (result.rows.length > 1000) {
+      logger.warn('Large result set detected', {
+        operation: 'fetch_all_users',
+        result_count: result.rows.length,
+        threshold: 1000
+      });
+    }
+    
+    logger.info('Successfully fetched users from database', { 
+      count: result.rows.length,
+      duration_ms: duration
+    });
+    
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching users:', error);
+    onError(req, error);
+    logger.error('Error fetching users from database', { 
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ error: 'Failed to fetch users' });
   } finally {
-    await client.end(); // Missing client cleanup
+    await client.end();
   }
 });
 
@@ -107,18 +211,35 @@ app.get('/api/user-count', async (req, res) => {
     connectionString: DATABASE_URL,
   });
   try {
-    await client.connect(); // Missing client.connect()
+    await client.connect();
+    logger.info('Database client connected for user count');
+    
     const result = await client.query('SELECT COUNT(*) FROM users');
-    res.json({ total: parseInt(result.rows[0].count) });
+    const count = parseInt(result.rows[0].count);
+    
+    // Warn if user count is high
+    if (count > 10000) {
+      logger.warn('High user count detected', {
+        count: count,
+        threshold: 10000
+      });
+    }
+    
+    logger.info('Successfully fetched user count', { count });
+    
+    res.json({ total: count });
   } catch (error) {
-    console.error('Error getting user count:', error);
+    onError(req, error);
+    logger.error('Error getting user count', { 
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ error: 'Failed to get user count' });
   } finally {
-    await client.end(); // Missing client cleanup
+    await client.end();
   }
 });
 
-
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  logger.info(`Server started successfully`, { port: PORT });
 });
