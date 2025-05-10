@@ -243,6 +243,37 @@ app.get('/api/user-count', async (req, res) => {
   }
 });
 
+// Endpoint to trigger a failure
+app.get('/api/trigger-failure', async (req, res) => {
+  const client = new Client({
+    connectionString: DATABASE_URL,
+  });
+  try {
+    await client.connect();
+    logger.info('Database client connected for failure test', { level: 'info' });
+    
+    // Attempt to perform an invalid query that will fail
+    await client.query('SELECT * FROM nonexistent_table');
+    
+    res.json({ message: 'This should not be reached' });
+  } catch (error) {
+    onError(req, error);
+    logger.error('Deliberate failure triggered', { 
+      level: 'error',
+      error: error.message,
+      stack: error.stack,
+      endpoint: '/api/trigger-failure',
+      timestamp: new Date().toISOString()
+    });
+    res.status(500).json({ 
+      error: 'Failure successfully triggered',
+      details: error.message
+    });
+  } finally {
+    await client.end();
+  }
+});
+
 app.listen(PORT, () => {
   logger.info(`Server started successfully`, { level: 'info', port: PORT });
 });
