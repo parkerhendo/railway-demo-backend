@@ -258,7 +258,7 @@ app.get('/api/trigger-failure', async (req, res) => {
   } catch (error) {
     onError(req, error);
     logger.error('Deliberate failure triggered', {
-      level: 'error',
+      // level: 'error',
       error: error.message,
       stack: error.stack,
       endpoint: '/api/trigger-failure',
