@@ -9,7 +9,6 @@ const PORT = process.env.PORT || 8080;
 
 // Configure Winston logger
 const logger = winston.createLogger({
-  level: 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.json()
@@ -29,7 +28,7 @@ app.use(express.json());
 app.use(bodyParser.json());
 app.use(cors());
 
-const DATABASE_URL = process.env.NODE_ENV === 'production' ? process.env.DATABASE_URL : process.env.DATABASE_PUBLIC_URL; 
+const DATABASE_URL = process.env.NODE_ENV === 'production' ? process.env.DATABASE_URL : process.env.DATABASE_PUBLIC_URL;
 
 const onError = (request, error) => {
   logger.error('Error occurred', { level: 'error', error: error.message, stack: error.stack });
@@ -85,7 +84,7 @@ async function insertUserToDb(user) {
       });
     }
 
-    logger.info('User inserted successfully', { 
+    logger.info('User inserted successfully', {
       level: 'info',
       firstName: user.name.first,
       lastName: user.name.last,
@@ -93,7 +92,7 @@ async function insertUserToDb(user) {
       duration_ms: duration
     });
   } catch (err) {
-    logger.error('Error inserting user into database', { 
+    logger.error('Error inserting user into database', {
       level: 'error',
       error: err.message,
       stack: err.stack,
@@ -112,7 +111,7 @@ async function insertUserToDb(user) {
 app.post('/api/fetch-users', async (req, res) => {
   try {
     const count = req.body.count || 10;
-    
+
     // Warn if requesting too many users
     if (count > 50) {
       logger.warn('Large user fetch request detected', {
@@ -121,18 +120,18 @@ app.post('/api/fetch-users', async (req, res) => {
         threshold: 50
       });
     }
-    
+
     logger.info('Fetching users from randomuser.me', { level: 'info', count });
-    
+
     const response = await axios.get(`https://randomuser.me/api/?results=${count}`);
     const users = response.data.results;
     logger.info('Successfully fetched users from randomuser.me', { level: 'info', count: users.length });
 
     // Insert users into database
     for (const user of users) {
-      logger.info('Processing user for database insertion', { 
+      logger.info('Processing user for database insertion', {
         level: 'info',
-        email: user.email 
+        email: user.email
       });
       await insertUserToDb(user);
     }
@@ -140,7 +139,7 @@ app.post('/api/fetch-users', async (req, res) => {
     res.json({ message: `Successfully fetched and stored ${users.length} users` });
   } catch (error) {
     onError(req, error);
-    logger.error('Error in fetch-users endpoint', { 
+    logger.error('Error in fetch-users endpoint', {
       level: 'error',
       error: error.message,
       stack: error.stack
@@ -158,7 +157,7 @@ app.get('/api/users', async (req, res) => {
     const startTime = Date.now();
     await client.connect();
     logger.info('Database client connected for users fetch', { level: 'info' });
-    
+
     const result = await client.query(
       'SELECT * FROM users ORDER BY created_at DESC'
     );
@@ -185,17 +184,17 @@ app.get('/api/users', async (req, res) => {
         threshold: 1000
       });
     }
-    
-    logger.info('Successfully fetched users from database', { 
+
+    logger.info('Successfully fetched users from database', {
       level: 'info',
       count: result.rows.length,
       duration_ms: duration
     });
-    
+
     res.json(result.rows);
   } catch (error) {
     onError(req, error);
-    logger.error('Error fetching users from database', { 
+    logger.error('Error fetching users from database', {
       level: 'error',
       error: error.message,
       stack: error.stack
@@ -214,10 +213,10 @@ app.get('/api/user-count', async (req, res) => {
   try {
     await client.connect();
     logger.info('Database client connected for user count', { level: 'info' });
-    
+
     const result = await client.query('SELECT COUNT(*) FROM users');
     const count = parseInt(result.rows[0].count);
-    
+
     // Warn if user count is high
     if (count > 10000) {
       logger.warn('High user count detected', {
@@ -226,13 +225,13 @@ app.get('/api/user-count', async (req, res) => {
         threshold: 10000
       });
     }
-    
+
     logger.info('Successfully fetched user count', { level: 'info', count });
-    
+
     res.json({ total: count });
   } catch (error) {
     onError(req, error);
-    logger.error('Error getting user count', { 
+    logger.error('Error getting user count', {
       level: 'error',
       error: error.message,
       stack: error.stack
@@ -251,21 +250,21 @@ app.get('/api/trigger-failure', async (req, res) => {
   try {
     await client.connect();
     logger.info('Database client connected for failure test', { level: 'info' });
-    
+
     // Attempt to perform an invalid query that will fail
     await client.query('SELECT * FROM nonexistent_table');
-    
+
     res.json({ message: 'This should not be reached' });
   } catch (error) {
     onError(req, error);
-    logger.error('Deliberate failure triggered', { 
+    logger.error('Deliberate failure triggered', {
       level: 'error',
       error: error.message,
       stack: error.stack,
       endpoint: '/api/trigger-failure',
       timestamp: new Date().toISOString()
     });
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failure successfully triggered',
       details: error.message
     });
