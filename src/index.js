@@ -9,15 +9,12 @@ const PORT = process.env.PORT || 8080;
 
 // Configure Winston logger
 const logger = winston.createLogger({
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
+  format: winston.format.json(),
   transports: [
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
-        winston.format.simple()
+        winston.format.json()
       )
     })
   ]
@@ -257,8 +254,8 @@ app.get('/api/trigger-failure', async (req, res) => {
     res.json({ message: 'This should not be reached' });
   } catch (error) {
     onError(req, error);
-    logger.error('Deliberate failure triggered', {
-      // level: 'error',
+    logger.error({
+      message: "Deliberate failure triggered",
       error: error.message,
       stack: error.stack,
       endpoint: '/api/trigger-failure',
