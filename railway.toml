@@ -1,0 +1,6 @@
+[build]
+builder = "railpack"
+
+[deploy]
+preDeployCommand = ["npm run db:migrate"]
+restartPolicyType = "Always"
