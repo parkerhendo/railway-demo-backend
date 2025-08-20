@@ -27,6 +27,8 @@ app.use(cors());
 
 const DATABASE_URL = process.env.NODE_ENV === 'production' ? process.env.DATABASE_URL : process.env.DATABASE_PUBLIC_URL;
 
+const OTHER_VARIABLE = process.env.ENV_VAR
+
 const onError = (request, error) => {
   logger.error('Error occurred', { level: 'error', error: error.message, stack: error.stack });
 }
